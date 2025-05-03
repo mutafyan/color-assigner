@@ -1,58 +1,91 @@
 import { useEffect, useState } from "react";
-import "./App.css";
+import "./styles/App.css";
 import ColorGrid from "./components/ColorGrid";
+import { getAssignedColor, getAvailableColors } from "./api/colorApi";
 
 function App() {
   const [name, setName] = useState("");
   const [response, setResponse] = useState(null);
   const [colorList, setColorList] = useState(null);
+  const [loadingColors, setLoadingColors] = useState(true);
+  const [assigningColor, setAssigningColor] = useState(false);
+  const [message, setMessage] = useState("");
+
   useEffect(() => {
     const getDisplayColors = async () => {
-      const res = await fetch(
-        `https://script.google.com/macros/s/AKfycbxzfH1-z7yyRFjYp1Id13i8eaDwdZ6HEV_8DKf6BscI1Fgr-ztYA2HMK2Hit4-vpswJ2Q/exec?mode=availableColors`
-      );
-      const resJson = await res.json();
-      setColorList(resJson.availableColors);
-      return resJson;
+      setLoadingColors(true);
+      try {
+        const data = await getAvailableColors();
+        setColorList(data.availableColors || []);
+      } catch (err) {
+        console.error("Failed to fetch color list", err);
+      } finally {
+        setLoadingColors(false);
+      }
     };
     getDisplayColors();
   }, [response]);
-  const handleNameInput = (e) => {
-    setName(e.target.value);
-  };
+
+  const handleNameInput = (e) => setName(e.target.value);
 
   const getColor = async () => {
-    const res = await fetch(
-      `https://script.google.com/macros/s/AKfycbxzfH1-z7yyRFjYp1Id13i8eaDwdZ6HEV_8DKf6BscI1Fgr-ztYA2HMK2Hit4-vpswJ2Q/exec?name=${name}`
-    );
-    const resJson = await res.json();
-    console.log(resJson);
-    setResponse(resJson);
+    if (!name.trim()) {
+      setMessage("Please enter your name.");
+      return;
+    }
+    setAssigningColor(true);
+    setMessage("");
+    try {
+      const resJson = await getAssignedColor(name);
+      setResponse(resJson);
+      setMessage(`${name}, your assigned color is "${resJson.color}"`);
+    } catch (err) {
+      console.error("Error assigning color", err);
+      setMessage("Something went wrong. Please try again.");
+    } finally {
+      setAssigningColor(false);
+    }
   };
+
   return (
-    <div>
+    <div className="wrapper">
       <h1>Color Assigner</h1>
-      {colorList && <ColorGrid colors={colorList} />}
-      <label content="Name">
+
+      <div className="inputBlock">
         <input
           placeholder="Enter your name..."
           value={name}
           onChange={handleNameInput}
+          className="input"
         />
-      </label>
-      <button onClick={getColor}>Submit</button>
-      {response && (
-        <div
-          style={{
-            width: "40px",
-            height: "40px",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            backgroundColor: response.color,
-          }}
-          title={response.color}
-        ></div>
+        <button onClick={getColor} className="button">
+          {assigningColor ? "Assigning..." : "Submit"}
+        </button>
+      </div>
+
+      {message && <p className="message">{message}</p>}
+
+      {assigningColor && <p>Loading assigned color...</p>}
+
+      {response?.color && (
+        <div className="resultBoxWrapper">
+          <div
+            className="resultBox"
+            style={{ backgroundColor: response.color }}
+            title={response.color}
+          />
+        </div>
+      )}
+
+      <h2>Available Colors</h2>
+      {loadingColors ? (
+        response ? (
+          <p>Updating colors...</p>
+        ) : (
+          <p>Loading colors...</p>
+        )
+      ) : (
+        <ColorGrid colors={colorList} />
       )}
     </div>
   );
