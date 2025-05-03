@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./App.css";
+import ColorGrid from "./components/ColorGrid";
 
 function App() {
   const [name, setName] = useState("");
@@ -15,7 +16,7 @@ function App() {
       return resJson;
     };
     getDisplayColors();
-  }, []);
+  }, [response]);
   const handleNameInput = (e) => {
     setName(e.target.value);
   };
@@ -30,6 +31,8 @@ function App() {
   };
   return (
     <div>
+      <h1>Color Assigner</h1>
+      {colorList && <ColorGrid colors={colorList} />}
       <label content="Name">
         <input
           placeholder="Enter your name..."
@@ -41,13 +44,15 @@ function App() {
       {response && (
         <div
           style={{
-            height: "10%",
-            width: "10%",
+            width: "40px",
+            height: "40px",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
             backgroundColor: response.color,
           }}
-        >
-          {response.color}
-        </div>
+          title={response.color}
+        ></div>
       )}
     </div>
   );
