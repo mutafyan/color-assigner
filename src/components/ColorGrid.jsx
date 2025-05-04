@@ -8,7 +8,7 @@ const ColorGrid = ({ colors = [] }) => {
           className='colorBox'
           style={{backgroundColor: color}}
           title={color}
-        />
+        >{color.split('')[0]}</div>
       ))}
     </div>
   );

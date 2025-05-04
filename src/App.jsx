@@ -5,14 +5,14 @@ import { getAssignedColor, getAvailableColors } from "./api/colorApi";
 
 function App() {
   const [name, setName] = useState("");
-  const [response, setResponse] = useState(null);
-  const [colorList, setColorList] = useState(null);
+  const [assignedColor, setAssignedColor] = useState(null);
+  const [colorList, setColorList] = useState([]);
   const [loadingColors, setLoadingColors] = useState(true);
-  const [assigningColor, setAssigningColor] = useState(false);
+  const [isAssigningColor, setIsAssigningColor] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const getDisplayColors = async () => {
+    const fetchColors = async () => {
       setLoadingColors(true);
       try {
         const data = await getAvailableColors();
@@ -23,8 +23,35 @@ function App() {
         setLoadingColors(false);
       }
     };
-    getDisplayColors();
-  }, [response]);
+
+    if (!assignedColor) {
+      fetchColors();
+    }
+  }, [assignedColor]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("colorData"));
+      if (stored?.assignedColor && stored?.name) {
+        setAssignedColor(stored.assignedColor);
+        setName(stored.name);
+        setMessage(
+          `Welcome back, ${stored.name}! You were assigned the color "${stored.assignedColor.color}".`
+        );
+      }
+    } catch {
+      console.log("Invalid localStorage format");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (assignedColor && name) {
+      localStorage.setItem(
+        "colorData",
+        JSON.stringify({ name, assignedColor })
+      );
+    }
+  }, [assignedColor, name]);
 
   const handleNameInput = (e) => setName(e.target.value);
 
@@ -33,17 +60,23 @@ function App() {
       setMessage("Please enter your name.");
       return;
     }
-    setAssigningColor(true);
+
+    setIsAssigningColor(true);
     setMessage("");
+
     try {
-      const resJson = await getAssignedColor(name);
-      setResponse(resJson);
-      setMessage(`${name}, your assigned color is "${resJson.color}"`);
+      const res = await getAssignedColor(name);
+      if (res?.color && res?.hex) {
+        setAssignedColor(res);
+        setMessage(`${name}, your assigned color is "${res.color}".`);
+      } else {
+        setMessage("Could not assign color. Please try again.");
+      }
     } catch (err) {
       console.error("Error assigning color", err);
       setMessage("Something went wrong. Please try again.");
     } finally {
-      setAssigningColor(false);
+      setIsAssigningColor(false);
     }
   };
 
@@ -51,41 +84,47 @@ function App() {
     <div className="wrapper">
       <h1>Color Assigner</h1>
 
-      <div className="inputBlock">
-        <input
-          placeholder="Enter your name..."
-          value={name}
-          onChange={handleNameInput}
-          className="input"
-        />
-        <button onClick={getColor} className="button">
-          {assigningColor ? "Assigning..." : "Submit"}
-        </button>
-      </div>
+      {!assignedColor && (
+        <div className="inputBlock">
+          <input
+            placeholder="Enter your name..."
+            value={name}
+            onChange={handleNameInput}
+            className="input"
+            disabled={isAssigningColor}
+          />
+          <button
+            onClick={getColor}
+            className="button"
+            disabled={isAssigningColor}
+            style={{backgroundColor: isAssigningColor ? 'grey' : '#4caf50'}}
+          >
+            {isAssigningColor ? "Assigning..." : "Submit"}
+          </button>
+        </div>
+      )}
 
       {message && <p className="message">{message}</p>}
 
-      {assigningColor && <p>Loading assigned color...</p>}
-
-      {response?.color && (
+      {assignedColor?.hex && (
         <div className="resultBoxWrapper">
           <div
             className="resultBox"
-            style={{ backgroundColor: response.color }}
-            title={response.color}
+            style={{ backgroundColor: assignedColor.hex }}
+            title={assignedColor.color}
           />
         </div>
       )}
 
-      <h2>Available Colors</h2>
-      {loadingColors ? (
-        response ? (
-          <p>Updating colors...</p>
-        ) : (
-          <p>Loading colors...</p>
-        )
-      ) : (
-        <ColorGrid colors={colorList} />
+      {!assignedColor && (
+        <>
+          <h2>Available Colors</h2>
+          {loadingColors ? (
+            <p>Loading colors...</p>
+          ) : (
+            <ColorGrid colors={colorList} />
+          )}
+        </>
       )}
     </div>
   );
